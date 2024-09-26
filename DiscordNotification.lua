@@ -122,7 +122,7 @@ function GenerateLevelUpMessage()
         vocacaoNome = "Elder Druid"
         vocacaoEmoji = config.Discord.DruidEmoji
     elseif vocacaoEnum == 0 then
-        vocacaoNome = "n00b"
+        vocacaoNome = "Sem Vocacao"
     end
     
     local embedField1 = {
