@@ -2,8 +2,14 @@ name: Create release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*"
+  pull_request:
+    types: [merged]
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -20,5 +26,5 @@ jobs:
         run: |
           gh release create "$tag" \
               --repo="$GITHUB_REPOSITORY" \
-              --title="${tag#v}" \
+              --title="${GITHUB_REPOSITORY#*/} ${tag#v}" \
               --generate-notes
