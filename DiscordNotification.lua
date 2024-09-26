@@ -42,7 +42,7 @@ local deathLabelDeltaX, deathLabelDeltaY = 30, 7
 local hudDeath, hudDeathText
 
 local lastHitBy = ""
-local lastHitpointValue
+local lastHitpointValue = 0
 
 -- FUNCTIONS TO UPDATE CONFIG FILE
 -- FUNÇÕES PARA ATUALIZAR O ARQUIVO DE CONFIGURAÇÃO 
