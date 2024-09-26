@@ -12,13 +12,13 @@ jobs:
     permissions:
       contents: write
     steps:
-    - name: Checkout main branch 
+    - name: Checkout Main Branch 
       uses: actions/checkout@v4
       with:
         ref: ${{ github.event.pull_request.merge_commit_sha }}
         #fetch-depth: '0'
 
-    - name: Bump version and push tag
+    - name: Bump Version and Push Tag
       uses: anothrNick/github-tag-action@v1 # Don't use @master or @v1 unless you're happy to test the latest version
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # if you don't want to set write permissions use a PAT token
@@ -26,7 +26,7 @@ jobs:
         WITH_V: true
         RELEASE_BRANCHES: main
         PRERELEASE: false
-    - name: Getting the latest tag
+    - name: Getting Latest Tag
       uses: actions-ecosystem/action-get-latest-tag@v1
       id: latest-tag
     - name : Generate Release
