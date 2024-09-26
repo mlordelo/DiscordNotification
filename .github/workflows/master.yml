@@ -12,12 +12,6 @@ jobs:
     permissions:
       contents: write
     steps:
-    - name: Create Release Folder
-      run: rsync -arv --exclude='.git/' --exclude='.github/' --exclude='.gitignore' --exclude='*.md' . ./release
-    - name: Switch to Release Folder
-      run: |
-        cd release
-        ls -la
     - uses: actions/checkout@v4
       with:
         ref: ${{ github.event.pull_request.merge_commit_sha }}
@@ -27,6 +21,7 @@ jobs:
       uses: anothrNick/github-tag-action@v1 # Don't use @master or @v1 unless you're happy to test the latest version
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # if you don't want to set write permissions use a PAT token
-        SOURCE: '/src'
+        SOURCE: 'src'
         WITH_V: true
+        RELEASE_BRANCHES: main
         PRERELEASE: false
