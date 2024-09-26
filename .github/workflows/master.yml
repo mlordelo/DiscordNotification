@@ -1,4 +1,4 @@
-name: MainDeployCI
+name: Tag and Release
 on:
   pull_request:
     types:
