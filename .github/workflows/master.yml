@@ -22,7 +22,9 @@ jobs:
       with:
         ref: ${{ github.event.pull_request.merge_commit_sha }}
         fetch-depth: '0'
-        sparse-checkout: '*.lua'
+        sparse-checkout: |
+          DiscordNotification.lua
+          DiscordNotificationConfig.lua
 
     - name: Bump version and push tag
       uses: anothrNick/github-tag-action@v1 # Don't use @master or @v1 unless you're happy to test the latest version
