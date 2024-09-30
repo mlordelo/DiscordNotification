@@ -7,7 +7,7 @@ Config.MessageTags = {
 }
 
 Config.Discord = {
-    WebhookUrl = "https://discord.com/api/webhooks/1281796046401437760/JMGcigfF7Gi2wt24ujAZrD8ODRnGDCXxS_pPvvx3AiPN450Vw3UzDkUYvJ0Ep9vpdWTH",
+    WebhookUrl = "YOUR_WEBHOOK_URL_HERE",
     FistEmoji = ":punch: ",
     AxeEmoji = ":axe: ",
     ClubEmoji = ":hammer: ",
