@@ -1,0 +1,21 @@
+name: Tag and Release
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+    - name: Checkout Main Branch 
+      uses: actions/checkout@v4
+    - name: Getting Latest Tag
+      uses: actions-ecosystem/action-get-latest-tag@v1
+      id: latest-tag
+    - name : Generate Release
+      uses: softprops/action-gh-release@v2
+      with:
+          tag_name: ${{ steps.latest-tag.outputs.tag }}
+          files: |
+            src/*
+            LICENSE
