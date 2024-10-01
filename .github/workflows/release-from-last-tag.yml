@@ -1,4 +1,4 @@
-name: Tag and Release
+name: Release from last Tag
 on:
   workflow_dispatch:
 jobs:
