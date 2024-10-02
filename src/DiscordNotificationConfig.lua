@@ -1,5 +1,6 @@
 local Config = {}
 
+-- DO NOT CHANGE THE MESSAGETAGS CONFIGURATION
 Config.MessageTags = {
     PlayerName = "|playerName|",
     CreatureName = "|creatureName|",
@@ -31,10 +32,10 @@ Config.Discord = {
     TitleMessageLoot = ":moneybag: |playerName| matou |bossName|!",
     DescMessageLoot = "|playerName| dropou os seguintes itens de |bossName|:",
     DiscordEmbedColor = {
-        5832630, --GREED
-        14696271, --RED
-        16759040, --GOLD (YELLOW)
-        5928418, --BLUE
+        LevelUp = 5832630,
+        Death = 14696271,
+        BossLoot = 16759040,
+        SkillUp = 5928418,
     }
 }
 
