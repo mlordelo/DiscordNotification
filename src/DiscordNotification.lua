@@ -19,6 +19,11 @@ Client.showMessage("Discord Notification carregado!")
 local levelUpSkills = config.Messages.LevelUpEnabled
 local levelUpMessage = config.Messages.SkillUpEnabled
 local deathMessage = config.Messages.DeathEnabled
+local lootMessage = config.Messages.LootEnabled
+
+-- TYPE OF ITEMS TO IDENTIFY: 0 - OFF | 1 - ALL (RARE AND VERY RARE) | 2 - RARE | 3 - VERY RARE
+-- TIPO DOS ITEMS PARA IDENTIFICAR: 0 - DESLIGADO | 1 - TODOS (RAROS E MUITO RAROS) | 2 - RARO | 3 - MUITO RARO
+local lootItemsType = config.HUD.LootTypeSelected
 
 local notificationMenuIcon = config.HUD.NotificationMenuIcon
 local notificationMenuhudX, notificationMenuhudY = config.HUD.NotificationMenuhudX, config.HUD.NotificationMenuhudY
@@ -27,22 +32,28 @@ local hudNotificationMenu, hudNotificationMenuTexto
 local notificationMenuOpen = false
 
 local levelUpIcon = config.HUD.LevelUpIcon
-local levelUpDeltaX, levelUpDeltaY = 20, 30
+local levelUpDeltaX, levelUpDeltaY = 15, 30
 local levelUpLabelDeltaX, levelUpLabelDeltaY = 30, 7
 local hudLevelUp, hudLevelUpText
 
 local skillUpIcon = config.HUD.SkillUpIcon
-local skillUpDeltaX, skillUpDeltaY = 20, 60
+local skillUpDeltaX, skillUpDeltaY = 15, 60
 local skillUpLabelDeltaX, skillUpLabelDeltaY = 30, 7
 local hudSkillUp, hudSkillUpText
 
 local deathIcon = config.HUD.DeathIcon
-local deathDeltaX, deathDeltaY = 20, 90
+local deathDeltaX, deathDeltaY = 15, 90
 local deathLabelDeltaX, deathLabelDeltaY = 30, 7
 local hudDeath, hudDeathText
 
+local lootIcon = config.HUD.LootItemIcon
+local lootDeltaX, lootDeltaY = 15, 120
+local lootLabelDeltaX, lootLabelDeltaY = 30, 7
+local hudLoot, hudLootText
+
 local lastHitBy = ""
-local lastHitpointValue = 0
+local lastHitpointValue
+local bossName = ""
 
 -- FUNCTIONS TO UPDATE CONFIG FILE
 -- FUNÇÕES PARA ATUALIZAR O ARQUIVO DE CONFIGURAÇÃO 
@@ -64,12 +75,12 @@ function UpdateConfigFile(property, newValeu)
 
     local updatedFileContent
 
-    if property == "LevelUpEnabled" or property == "SkillUpEnabled" or property == "DeathEnabled" then
+    if property == "LevelUpEnabled" or property == "SkillUpEnabled" or property == "DeathEnabled" or property == "LootEnabled" then
         local currentValue = fileContent:match(property .. " = (%a+)")
         updatedFileContent = fileContent:gsub(property .. " = " .. currentValue, property .. " = " .. tostring(newValeu))
     end
 
-    if property == "NotificationMenuhudX" or property == "NotificationMenuhudY" then
+    if property == "NotificationMenuhudX" or property == "NotificationMenuhudY" or property == "LootTypeSelected" then
         local currentValue = fileContent:match(property .. " = (%d+)")
         updatedFileContent = fileContent:gsub(property .. " = " .. currentValue, property .. " = " .. newValeu)
     end
@@ -104,6 +115,14 @@ function CheckDeath()
     SendMessageToDiscord(message)
 end
 
+function CheckLoot(bossName, itemList)
+    --Remove unecessary characters from string
+    itemList = itemList:gsub("%.", ""):gsub(" %b()", "")
+    local message = GenerateLootMessage(bossName, itemList)
+    SendMessageToDiscord(message)
+    
+end
+
 function GenerateLevelUpMessage()
     local vocacaoEnum = Creature(Player.getId()):getVocation()
     local vocacaoNome = ""
@@ -122,7 +141,7 @@ function GenerateLevelUpMessage()
         vocacaoNome = "Elder Druid"
         vocacaoEmoji = config.Discord.DruidEmoji
     elseif vocacaoEnum == 0 then
-        vocacaoNome = "Sem Vocacao"
+        vocacaoNome = "n00b"
     end
     
     local embedField1 = {
@@ -289,6 +308,43 @@ function GenerateDeathMessage()
     return jsonString
 end
 
+function GenerateLootMessage(bossName, itemList)
+
+    local discordItemList = ""
+    for word in string.gmatch(itemList, '([^,]+)') do
+        local item = word:gsub("^a ", ""):gsub("^ a ", ""):gsub("^an ", ""):gsub("^ an ", ""):gsub("^ ", ""):gsub("^%d+ ", "")
+
+        if config.ItemsVeryRare[item] then
+            discordItemList = discordItemList .. config.ItemsVeryRare[item] .. "\n"
+        end
+    end
+
+    local embedField1 = {
+        name = "Itens",
+        value = discordItemList,
+        inline = true
+    }
+
+    local title = ReplaceTagsInMessage(config.Discord.TitleMessageDeath)
+    local description = ReplaceTagsInMessage(config.Discord.DescMessageDeath)
+    local embed = {
+        title = title,
+        description = description,
+        color = config.Discord.DiscordEmbedColor,
+        fields = {
+            embedField1
+        },
+        attachments = {}
+    }
+
+    local message = {
+        content = "",
+        embeds = {
+            embed
+        }
+    }
+end
+
 function ReplaceTagsInMessage(message)
 
     for k , v in pairs(config.MessageTags) do
@@ -300,6 +356,8 @@ function ReplaceTagsInMessage(message)
             message = string.gsub(message,v, "**" .. lastHitBy .. "**")
         elseif k == "DamageTaken" then
             message = string.gsub(message,v, "**" .. lastHitpointValue .. "**")
+        elseif k == "BossName" then
+            message = string.gsub(message,v, "**" .. bossName .. "**")
         end
     end
     return message
@@ -365,6 +423,15 @@ end
 
 -- FUNCTIONS RELATED TO THE HUD
 -- FUNÇÕES RELACIONADAS A HUD
+function GetLootItemText()
+    local lootItemText = config.HUD.LootItemText
+
+    if lootMessage and lootItemsType <= #config.HUD.LootTypes then
+        lootItemText = lootItemText .. config.HUD.LootTypes[lootItemsType]
+    end
+    return lootItemText
+end
+
 function ToogleLevelUpTextColor()
     if levelUpSkills == true then
         hudLevelUpText:setColor(config.HUD.ItemColorActive[1], config.HUD.ItemColorActive[2], config.HUD.ItemColorActive[3])
@@ -389,6 +456,14 @@ function ToogleDeathTextColor()
     end
 end
 
+function ToogleLootTextColor()
+    if lootMessage == true then
+        hudLootText:setColor(config.HUD.ItemColorActive[1], config.HUD.ItemColorActive[2], config.HUD.ItemColorActive[3])
+    else
+        hudLootText:setColor(config.HUD.ItemColorInactive[1], config.HUD.ItemColorInactive[2], config.HUD.ItemColorInactive[3])
+    end
+end
+
 function OpenNotificationMenu()
     notificationMenuOpen = not notificationMenuOpen
     if notificationMenuOpen == true then
@@ -399,6 +474,8 @@ function OpenNotificationMenu()
         hudSkillUpText:show()
         hudDeath:show()
         hudDeathText:show()
+        hudLoot:show()
+        hudLootText:show()
     else
         hudNotificationMenuTexto:setColor(config.HUD.MenuColorClosed[1], config.HUD.MenuColorClosed[2], config.HUD.MenuColorClosed[3])
         hudLevelUp:hide()
@@ -407,6 +484,8 @@ function OpenNotificationMenu()
         hudSkillUpText:hide()
         hudDeath:hide()
         hudDeathText:hide()
+        hudLoot:hide()
+        hudLootText:hide()
     end
 end
 
@@ -426,6 +505,20 @@ function ToogleDeathNotification()
     deathMessage = not deathMessage
     ToogleDeathTextColor()
     UpdateConfigFile("DeathEnabled", deathMessage)
+end
+
+function ToogleLootNotification()
+    if lootItemsType >= 3  or lootItemsType < 0 then
+        lootItemsType = 0
+        lootMessage = false
+    else
+        lootItemsType = lootItemsType + 1
+        lootMessage = true
+    end
+    hudLootText:setText(GetLootItemText())
+    ToogleLootTextColor()
+    UpdateConfigFile("LootEnabled", lootMessage)
+    UpdateConfigFile("LootTypeSelected", lootItemsType)
 end
 
 -- NOTIFICATIONS MENU DEFINITION
@@ -472,7 +565,7 @@ hudSkillUpText:setCallback(ToggleSkillUpNotification)
 hudSkillUpText:hide()
 
 -- PLAYER DEATH ITEM MENU DEFINITION
--- DEFINICAO DO ITEM DE MENO DE MORTES
+-- DEFINICAO DO ITEM DE MENU DE MORTES
 hudDeath = HUD.new(notificationMenuhudX + deathDeltaX, notificationMenuhudY + deathDeltaY, deathIcon, true)
 hudDeath:setDraggable(false)
 hudDeath:setCallback(ToogleDeathNotification)
@@ -485,6 +578,21 @@ hudDeathText:setFontSize(config.HUD.DeathItemTextSize)
 hudDeathText:setDraggable(false)
 hudDeathText:setCallback(ToogleDeathNotification)
 hudDeathText:hide()
+
+-- BOSS LOOT ITEM MENU DEFINITION
+-- DEFINICAO DO ITEM DE MENU DE LOOT THE BOSS
+hudLoot = HUD.new(notificationMenuhudX + lootDeltaX, notificationMenuhudY + lootDeltaY, lootIcon, true)
+hudLoot:setDraggable(false)
+hudLoot:setCallback(ToogleLootNotification)
+hudLoot:setScale(config.HUD.LootItemScale)
+hudLoot:hide()
+
+hudLootText = HUD.new(notificationMenuhudX + lootDeltaX + lootLabelDeltaX, notificationMenuhudY + lootDeltaY + lootLabelDeltaY, GetLootItemText(), true)
+ToogleLootTextColor()
+hudLootText:setFontSize(config.HUD.LootItemTextSize)
+hudLootText:setDraggable(false)
+hudLootText:setCallback(ToogleLootNotification)
+hudLootText:hide()
 
 -- This wait is important to avoid HUD bugs because the getPos function takes a while to return the updated position of HUD elements.
 -- Esse wait eh importante pra nao bugar a hud, pq getPos demora um pouco pra nao retornar 0,0
@@ -506,6 +614,8 @@ Timer("hudsPositions", function()
         hudSkillUpText:setPos(notificationMenuhudX + skillUpDeltaX + skillUpLabelDeltaX, notificationMenuhudY + skillUpDeltaY + skillUpLabelDeltaY)
         hudDeath:setPos(notificationMenuhudX + deathDeltaX, notificationMenuhudY + deathDeltaY)
         hudDeathText:setPos(notificationMenuhudX + deathDeltaX + deathLabelDeltaX, notificationMenuhudY + deathDeltaY + deathLabelDeltaY)
+        hudLoot:setPos(notificationMenuhudX + lootDeltaX, notificationMenuhudY + lootDeltaY)
+        hudLootText:setPos(notificationMenuhudX + lootDeltaX + lootLabelDeltaX, notificationMenuhudY + lootDeltaY + lootLabelDeltaY)
         UpdateConfigFile("NotificationMenuhudX", notificationMenuhudX)
         UpdateConfigFile("NotificationMenuhudY", notificationMenuhudY)
     end
