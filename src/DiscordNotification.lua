@@ -52,7 +52,7 @@ local lootLabelDeltaX, lootLabelDeltaY = 30, 7
 local hudLoot, hudLootText
 
 local lastHitBy = ""
-local lastHitpointValue
+local lastHitpointValue = 0;
 local bossName = ""
 
 -- FUNCTIONS TO UPDATE CONFIG FILE
@@ -115,12 +115,48 @@ function CheckDeath()
     SendMessageToDiscord(message)
 end
 
-function CheckLoot(bossName, itemList)
+function CheckLoot(itemList)
     --Remove unecessary characters from string
-    itemList = itemList:gsub("%.", ""):gsub(" %b()", "")
-    local message = GenerateLootMessage(bossName, itemList)
+    itemList = itemList:gsub("{%d+|", ""):gsub("}", ""):gsub("%.", ""):gsub(" %b()", "")
+    local discordItemList = ""
+    local items = {}
+    for word in string.gmatch(itemList, '([^,]+)') do
+        local item = word:gsub("^a ", ""):gsub("^ a ", ""):gsub("^an ", ""):gsub("^ an ", ""):gsub("^ ", ""):gsub("^%d+ ", "")
+        table.insert(items, item)
+    end
+    if items then
+        table.sort(items)
+    end
+    for k , item in pairs(items) do
+        if lootItemsType == 1 then
+
+            local itemFound = false
+            if config.ItemsVeryRare[item] then
+                discordItemList = discordItemList .. config.Discord.LootItemEmoji .. config.ItemsVeryRare[item] .. "\n"
+                itemFound = true
+            end
+            if itemFound == false and config.ItemsRare[item]then
+                discordItemList = discordItemList .. config.Discord.LootItemEmoji ..config.ItemsRare[item] .. "\n"
+            end
+
+        elseif lootItemsType == 2 then
+
+            if config.ItemsRare[item] then
+                discordItemList = discordItemList .. config.Discord.LootItemEmoji ..config.ItemsRare[item] .. "\n"
+            end
+
+        elseif  lootItemsType == 3 then
+
+            if config.ItemsVeryRare[item] then
+                discordItemList = discordItemList .. config.Discord.LootItemEmoji .. config.ItemsVeryRare[item] .. "\n"
+            end
+
+        end
+    end
+
+    if discordItemList == "" then return end
+    local message = GenerateLootMessage(discordItemList)
     SendMessageToDiscord(message)
-    
 end
 
 function GenerateLevelUpMessage()
@@ -162,7 +198,7 @@ function GenerateLevelUpMessage()
     local embed = {
         title = title,
         description = description,
-        color = config.Discord.DiscordEmbedColor,
+        color = config.Discord.DiscordEmbedColor[1],
         fields = {
             embedField1, embedField2
         },
@@ -231,7 +267,7 @@ function GenerateSkillUpMessage(skill)
     local embed = {
         title = title,
         description = description,
-        color = config.Discord.DiscordEmbedColor,
+        color = config.Discord.DiscordEmbedColor[4],
         fields = {
             embedField1, embedField2
         },
@@ -289,7 +325,7 @@ function GenerateDeathMessage()
     local embed = {
         title = title,
         description = description,
-        color = config.Discord.DiscordEmbedColor,
+        color = config.Discord.DiscordEmbedColor[2],
         fields = {
             embedField1, embedField2
         },
@@ -308,29 +344,20 @@ function GenerateDeathMessage()
     return jsonString
 end
 
-function GenerateLootMessage(bossName, itemList)
-
-    local discordItemList = ""
-    for word in string.gmatch(itemList, '([^,]+)') do
-        local item = word:gsub("^a ", ""):gsub("^ a ", ""):gsub("^an ", ""):gsub("^ an ", ""):gsub("^ ", ""):gsub("^%d+ ", "")
-
-        if config.ItemsVeryRare[item] then
-            discordItemList = discordItemList .. config.ItemsVeryRare[item] .. "\n"
-        end
-    end
+function GenerateLootMessage(itemList)
 
     local embedField1 = {
         name = "Itens",
-        value = discordItemList,
+        value = itemList,
         inline = true
     }
 
-    local title = ReplaceTagsInMessage(config.Discord.TitleMessageDeath)
-    local description = ReplaceTagsInMessage(config.Discord.DescMessageDeath)
+    local title = ReplaceTagsInMessage(config.Discord.TitleMessageLoot)
+    local description = ReplaceTagsInMessage(config.Discord.DescMessageLoot)
     local embed = {
         title = title,
         description = description,
-        color = config.Discord.DiscordEmbedColor,
+        color = config.Discord.DiscordEmbedColor[3],
         fields = {
             embedField1
         },
@@ -343,12 +370,15 @@ function GenerateLootMessage(bossName, itemList)
             embed
         }
     }
+
+    local jsonString = JSON.encode(message)
+
+    return jsonString
 end
 
 function ReplaceTagsInMessage(message)
 
     for k , v in pairs(config.MessageTags) do
-
         if k == "PlayerName" then
             local playerName = FirstToUpper(Player.getName())
             message = string.gsub(message,v, "**" .. playerName .. "**")
@@ -383,11 +413,16 @@ end
 
 function OnTextEvent(messageData)
     --print(JSON.encode(messageData))
-
     if messageData.messageType == Enums.MessageTypes.MESSAGE_LOOT then
-       --TODO: Add notifications for loot items from a list
+        if lootMessage then
+            local bossStringName,_, _, _, lootItems = string.match(messageData.text, config.Messages.BossDropPattern)
+            if bossStringName and lootItems then
+                bossName = bossStringName
+                CheckLoot(lootItems)
+            end
+        end
     elseif messageData.messageType == Enums.MessageTypes.MESSAGE_DAMAGE_RECEIVED then
-        local hitpointValue, discart1, discart2, discart3, discart4, creatureFullName, discart5, discart6, discart7 = string.match(messageData.text, "You lose (%d+) (%a+) due to an attack by ((%a+)(%s)((%a+)(%s*)(%a*))).")
+        local hitpointValue, discart1, discart2, discart3, discart4, creatureFullName, discart5, discart6, discart7 = string.match(messageData.text, config.Messages.LastHitByPattern)
         if creatureFullName and hitpointValue then
             lastHitBy = creatureFullName
             lastHitpointValue = hitpointValue
