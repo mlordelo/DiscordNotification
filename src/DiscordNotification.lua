@@ -198,7 +198,7 @@ function GenerateLevelUpMessage()
     local embed = {
         title = title,
         description = description,
-        color = config.Discord.DiscordEmbedColor[1],
+        color = config.Discord.DiscordEmbedColor.LevelUp,
         fields = {
             embedField1, embedField2
         },
@@ -267,7 +267,7 @@ function GenerateSkillUpMessage(skill)
     local embed = {
         title = title,
         description = description,
-        color = config.Discord.DiscordEmbedColor[4],
+        color = config.Discord.DiscordEmbedColor.SkillUp,
         fields = {
             embedField1, embedField2
         },
@@ -325,7 +325,7 @@ function GenerateDeathMessage()
     local embed = {
         title = title,
         description = description,
-        color = config.Discord.DiscordEmbedColor[2],
+        color = config.Discord.DiscordEmbedColor.Death,
         fields = {
             embedField1, embedField2
         },
@@ -357,7 +357,7 @@ function GenerateLootMessage(itemList)
     local embed = {
         title = title,
         description = description,
-        color = config.Discord.DiscordEmbedColor[3],
+        color = config.Discord.DiscordEmbedColor.BossLoot,
         fields = {
             embedField1
         },
