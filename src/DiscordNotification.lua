@@ -491,21 +491,24 @@ function AddHistoricalDamageToDescription(description)
 end
 
 function SendMessageToDiscord(message)
-    local response = {}
-    local _, status, headers = socket.request {
-        url = config.Discord.WebhookUrl,
-        method = "POST",
-        source = ltn12.source.string(message),
-        sink = ltn12.sink.table(response),
-        headers = {
-            ["content-length"] = string.len(message),
-            ["Content-Type"] = "application/json",
+    for k , url in pairs(config.Discord.WebhookUrl) do
+        local response = {}
+        local _, status, headers = socket.request {
+            url = url,
+            method = "POST",
+            source = ltn12.source.string(message),
+            sink = ltn12.sink.table(response),
+            headers = {
+                ["content-length"] = string.len(message),
+                ["Content-Type"] = "application/json",
+            }
         }
-    }
-    
-    if status ~= 200 and status ~= 204 then
-        print("HTTP request failed. Status code:", status)
+        
+        if status ~= 200 and status ~= 204 then
+            print("HTTP request failed. Status code:", status)
+        end
     end
+    
 end
 
 -- #endregion DISCORD MESSAGES GENERATION
