@@ -9,7 +9,10 @@ Config.MessageTags = {
 }
 
 Config.Discord = {
-    WebhookUrl = "YOUR_WEBHOOK_URL_HERE",
+    WebhookUrls =  {
+        "YOUR_WEBHOOK_URL_HERE",
+        "YOUR_WEBHOOK_URL_HERE",
+    },
     FistEmoji = ":punch: ",
     AxeEmoji = ":axe: ",
     ClubEmoji = ":hammer: ",
