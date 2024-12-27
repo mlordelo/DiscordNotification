@@ -511,7 +511,7 @@ end
 -- #endregion DISCORD MESSAGES GENERATION
 
 function OnTextEvent(messageData)
-    --print(JSON.encode(messageData))
+
     if messageData.messageType == Enums.MessageTypes.MESSAGE_LOOT then
         if lootMessage then
             local bossStringName,_, _, _, lootItems = string.match(messageData.text, config.Messages.BossDropPattern)
