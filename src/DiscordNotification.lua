@@ -2,17 +2,49 @@
 -- NAO ALTERE ABAIXO DESSA LINHA. EXISTE UM ARQUIVO DE CONFIGURAÇÃO COM OS ELEMENTOS QUE VOCÊ PODE CONSTUMIZAR/ALTERAR
 
 
+
+-- #region DEPENDENCIES
+
 -- DEPENDENCIES
 -- DEPENDENCIAS
+local TIBIA_CLIENT_VERSION = tonumber((Client.getVersion() or "13.0"):match("%d%d"))
+local pathsBaseDir = Engine.getScriptsDirectory()
+local luaPaths = {
+    {
+        path = { "lua\\?.lua", "lua\\socket\\?.lua" },
+        cpath = { "?.dll", "lua\\?.dll"    }
+    },
+    {
+        path = { "64bits\\lua\\?.lua", "64bits\\lua\\socket\\?.lua" },
+        cpath = { "64bits\\?.dll", "64bits\\lua\\?.dll" }
+    }
+}
+
+local function addPaths(paths, base)
+    local parsedPaths = base
+    for _, path in ipairs(paths) do
+        parsedPaths = parsedPaths .. ";" .. pathsBaseDir .. '\\dlls_lib\\' .. path
+    end
+    return parsedPaths
+end
+
+local versionIndex = TIBIA_CLIENT_VERSION == 13 and 1 or 2
+package.path = addPaths(luaPaths[versionIndex].path, package.path)
+package.cpath = addPaths(luaPaths[versionIndex].cpath, package.cpath)
+
 local socket = require("socket.http")
 local ltn12 = require("ltn12")
 package.path = package.path .. ";" .. Engine.getScriptsDirectory() .. "\\?.lua"
 local config = require("DiscordNotificationConfig")
 
+-- #endregion
+
 
 -- LOADING MESSAGE
 -- MENSAGEM DE CARREGAMENTO
 Client.showMessage("Discord Notification carregado!")
+
+-- #region VARIABLES
 
 -- VARIABLES DEFINITION
 -- DEFINIÇÃO DAS VARIÁVEIS
@@ -24,6 +56,10 @@ local lootMessage = config.Messages.LootEnabled
 -- TYPE OF ITEMS TO IDENTIFY: 0 - OFF | 1 - ALL (RARE AND VERY RARE) | 2 - RARE | 3 - VERY RARE
 -- TIPO DOS ITEMS PARA IDENTIFICAR: 0 - DESLIGADO | 1 - TODOS (RAROS E MUITO RAROS) | 2 - RARO | 3 - MUITO RARO
 local lootItemsType = config.HUD.LootTypeSelected
+
+-- TYPE OF DEATH MESSAGE: 0 - OFF | 1 - SHORT MESSAGE (WITHOUT DAMAGE TAKEN HISTORY) | 2 - DETAILED MESSAGE (WITH DAMAGE TAKEN HISTORY)
+-- TIPO DAS MENSAGENS DE MORTES: 0 - DESLIGADO | 1 - MENSAGEM RESUMIDA (SEM HISTORICO DE DANO SOFRIDO) | 2 - MENSAGEM DETALHADA (COM HISTORICO DE DANO SOFRIDO)
+local deathMessageType = config.HUD.DeathMessageTypeSelected
 
 local notificationMenuIcon = config.HUD.NotificationMenuIcon
 local notificationMenuhudX, notificationMenuhudY = config.HUD.NotificationMenuhudX, config.HUD.NotificationMenuhudY
@@ -54,6 +90,37 @@ local hudLoot, hudLootText
 local lastHitBy = ""
 local lastHitpointValue = 0;
 local bossName = ""
+local discordDescriptionCharLimit = 4096
+local hitHistory = {}
+
+-- #endregion VARIABLES
+
+-- #region UTILITY FUNCTIONS
+
+-- FUNCTIONS TO GET THE PLAYER'S TOTAL HEALTH
+-- FUNÇÕES PARA RETORNAR A VIDA TOTAL DO PLAYER
+function GetTotalHealth()
+    local currentHealth = Player.getHealth()
+    local healthPercent = Player.getHealthPercent()
+
+    if healthPercent > 0 then
+        local totalHealth = currentHealth / (healthPercent / 100)
+        return totalHealth
+    else
+        return 0
+    end
+end
+
+-- FUNCTIONS TO GET THE TOTAL OF DAMAGE TAKEN FROM THE hitHistory TABLE
+-- FUNÇÕES PARA RETORNAR O TOTAL DE DANO RECEBIDO DA TABELA hitHistory
+function GetHitHistoryTotal()
+    if #hitHistory == 0 then return 0 end
+    local total = 0
+    for key, value in pairs(hitHistory) do
+        total = total + value[1]
+    end
+    return total
+end
 
 -- FUNCTIONS TO UPDATE CONFIG FILE
 -- FUNÇÕES PARA ATUALIZAR O ARQUIVO DE CONFIGURAÇÃO 
@@ -80,7 +147,7 @@ function UpdateConfigFile(property, newValeu)
         updatedFileContent = fileContent:gsub(property .. " = " .. currentValue, property .. " = " .. tostring(newValeu))
     end
 
-    if property == "NotificationMenuhudX" or property == "NotificationMenuhudY" or property == "LootTypeSelected" then
+    if property == "NotificationMenuhudX" or property == "NotificationMenuhudY" or property == "LootTypeSelected" or property == "DeathMessageTypeSelected" then
         local currentValue = fileContent:match(property .. " = (%d+)")
         updatedFileContent = fileContent:gsub(property .. " = " .. currentValue, property .. " = " .. newValeu)
     end
@@ -97,6 +164,10 @@ end
 function FirstToUpper(str)
     return (str:gsub("(%l)(%w+)", function(a,b) return string.upper(a)..b end))
 end
+
+-- #endregion UTILITY FUNCTIONS
+
+-- #region DISCORD MESSAGES GENERATION
 
 -- FUNCTIONS TO GENERATE THE DISCORD MESSAGES AND SEND THEM
 -- FUNÇÕES PARA GERAR AS MENSAGES DO DISCORD E ENVIÁ-LAS
@@ -322,6 +393,11 @@ function GenerateDeathMessage()
     lastHitBy = FirstToUpper(lastHitBy)
     local title = ReplaceTagsInMessage(config.Discord.TitleMessageDeath)
     local description = ReplaceTagsInMessage(config.Discord.DescMessageDeath)
+
+    if deathMessageType == 2  then
+        description = AddHistoricalDamageToDescription(description)
+    end
+
     local embed = {
         title = title,
         description = description,
@@ -393,6 +469,27 @@ function ReplaceTagsInMessage(message)
     return message
 end
 
+function AddHistoricalDamageToDescription(description)
+    if #hitHistory == 0 then return description end
+
+    table.sort(hitHistory, function(a, b) return a[3] > b[3] end)
+
+    description = description .. "\r\r" .. "**Histórico de dano**:" .. "\r"
+
+    local updatedMessage = ""
+    updatedMessage = description
+    
+    for key, value in pairs(hitHistory) do
+        updatedMessage = updatedMessage .. value[2] .. " - " .. value[1] .. "\r"
+        if string.len(updatedMessage) >=  discordDescriptionCharLimit then
+            break
+        end
+        description = updatedMessage
+    end
+
+    return description
+end
+
 function SendMessageToDiscord(message)
     local response = {}
     local _, status, headers = socket.request {
@@ -411,6 +508,8 @@ function SendMessageToDiscord(message)
     end
 end
 
+-- #endregion DISCORD MESSAGES GENERATION
+
 function OnTextEvent(messageData)
     --print(JSON.encode(messageData))
     if messageData.messageType == Enums.MessageTypes.MESSAGE_LOOT then
@@ -426,6 +525,15 @@ function OnTextEvent(messageData)
         if creatureFullName and hitpointValue then
             lastHitBy = creatureFullName
             lastHitpointValue = hitpointValue
+
+            local playerHP = GetTotalHealth()
+            local hitHistoryTotal = GetHitHistoryTotal()
+            local damageAndDate = {lastHitpointValue, os.date("%X"), os.time()}
+            if hitHistoryTotal >= playerHP then
+                table.remove(hitHistory, 1)
+            end
+
+            table.insert(hitHistory, damageAndDate)
         end
     elseif messageData.messageType == Enums.MessageTypes.MESSAGE_EVENT_ADVANCE then
         local textMatch = false
@@ -456,6 +564,8 @@ function OnTextEvent(messageData)
     end
 end
 
+-- #region HUD FUNCTIONS
+
 -- FUNCTIONS RELATED TO THE HUD
 -- FUNÇÕES RELACIONADAS A HUD
 function GetLootItemText()
@@ -465,6 +575,16 @@ function GetLootItemText()
         lootItemText = lootItemText .. config.HUD.LootTypes[lootItemsType]
     end
     return lootItemText
+end
+
+function GetDeathItemText()
+    print(deathMessageType)
+    local deathItemText = config.HUD.DeathItemText
+
+    if deathMessage and deathMessageType <= #config.HUD.DeathMessageTypes then
+        deathItemText = deathItemText .. config.HUD.DeathMessageTypes[deathMessageType]
+    end
+    return deathItemText
 end
 
 function ToogleLevelUpTextColor()
@@ -537,9 +657,17 @@ function ToggleSkillUpNotification()
 end
 
 function ToogleDeathNotification()
-    deathMessage = not deathMessage
+    if deathMessageType >= 2 or deathMessageType < 0 then
+        deathMessageType = 0
+        deathMessage = false
+    else
+        deathMessageType = deathMessageType +1
+        deathMessage = true
+    end
+    hudDeathText:setText(GetDeathItemText())
     ToogleDeathTextColor()
     UpdateConfigFile("DeathEnabled", deathMessage)
+    UpdateConfigFile("DeathMessageTypeSelected", deathMessageType)
 end
 
 function ToogleLootNotification()
@@ -555,6 +683,10 @@ function ToogleLootNotification()
     UpdateConfigFile("LootEnabled", lootMessage)
     UpdateConfigFile("LootTypeSelected", lootItemsType)
 end
+
+-- #endregion HUD FUNCTIONS
+
+-- #region HUD CREATION
 
 -- NOTIFICATIONS MENU DEFINITION
 -- DEFINICAO DO MENU DE NOTIFICACOES
@@ -607,7 +739,7 @@ hudDeath:setCallback(ToogleDeathNotification)
 hudDeath:setScale(config.HUD.DeathIconScale)
 hudDeath:hide()
 
-hudDeathText = HUD.new(notificationMenuhudX + deathDeltaX + deathLabelDeltaX, notificationMenuhudY + deathDeltaY + deathLabelDeltaY, config.HUD.DeathItemText, true)
+hudDeathText = HUD.new(notificationMenuhudX + deathDeltaX + deathLabelDeltaX, notificationMenuhudY + deathDeltaY + deathLabelDeltaY, GetDeathItemText(), true)
 ToogleDeathTextColor()
 hudDeathText:setFontSize(config.HUD.DeathItemTextSize)
 hudDeathText:setDraggable(false)
@@ -655,6 +787,8 @@ Timer("hudsPositions", function()
         UpdateConfigFile("NotificationMenuhudY", notificationMenuhudY)
     end
 end, 1000)
+
+-- #endregion HUD CREATION
 
 -- ADDING THE CALLBACK TO THE TEXT MESSAGE EVENT TO SEND THE DISCORD MESSAGES
 -- ADICIONANDO O CALLBACK DO EVENTO THE TEXT MESSAGE PARA ENVIAR AS MENSAGENS DO DISCORD
