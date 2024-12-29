@@ -491,7 +491,7 @@ function AddHistoricalDamageToDescription(description)
 end
 
 function SendMessageToDiscord(message)
-    for k , url in pairs(config.Discord.WebhookUrl) do
+    for k , url in pairs(config.Discord.WebhookUrls) do
         local response = {}
         local _, status, headers = socket.request {
             url = url,
