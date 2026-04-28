@@ -52,6 +52,7 @@ local levelUpSkills = config.Messages.LevelUpEnabled
 local levelUpMessage = config.Messages.SkillUpEnabled
 local deathMessage = config.Messages.DeathEnabled
 local lootMessage = config.Messages.LootEnabled
+local pmMessage = config.Messages.PmEnabled
 
 -- TYPE OF ITEMS TO IDENTIFY: 0 - OFF | 1 - ALL (RARE AND VERY RARE) | 2 - RARE | 3 - VERY RARE
 -- TIPO DOS ITEMS PARA IDENTIFICAR: 0 - DESLIGADO | 1 - TODOS (RAROS E MUITO RAROS) | 2 - RARO | 3 - MUITO RARO
@@ -92,6 +93,8 @@ local lastHitpointValue = 0;
 local bossName = ""
 local discordDescriptionCharLimit = 4096
 local hitHistory = {}
+local pmAuthor = ""
+local pmAuthorLevel = ""
 
 -- #endregion VARIABLES
 
@@ -173,17 +176,17 @@ end
 -- FUNÇÕES PARA GERAR AS MENSAGES DO DISCORD E ENVIÁ-LAS
 function CheckLevelUp()
     local message = GenerateLevelUpMessage()
-    SendMessageToDiscord(message)
+    SendMessageToDiscord(message, "LevelUp")
 end
 
 function CheckSkillUp(skill)
     local message = GenerateSkillUpMessage(skill)
-    SendMessageToDiscord(message)
+    SendMessageToDiscord(message, "SkillUp")
 end
 
 function CheckDeath()
     local message = GenerateDeathMessage()
-    SendMessageToDiscord(message)
+    SendMessageToDiscord(message, "Death")
 end
 
 function CheckLoot(itemList)
@@ -227,7 +230,12 @@ function CheckLoot(itemList)
 
     if discordItemList == "" then return end
     local message = GenerateLootMessage(discordItemList)
-    SendMessageToDiscord(message)
+    SendMessageToDiscord(message, "BossLoot")
+end
+
+function CheckPmMessage(message)
+    local message = GeneratePmMessage(message)
+    SendMessageToDiscord(message, "Pm")
 end
 
 function GenerateLevelUpMessage()
@@ -452,10 +460,27 @@ function GenerateLootMessage(itemList)
     return jsonString
 end
 
+function GeneratePmMessage(message)
+    pmAuthor = message.AuthorName
+    pmAuthorLevel = message.AuthorLevel
+    local title = ReplaceTagsInMessage(config.Discord.TitleMessageLevel)
+    local description = ReplaceTagsInMessage(config.Discord.DescMessageLevel)
+    local embed = {
+        title = title,
+        description = description,
+        color = config.Discord.DiscordEmbedColor.LevelUp,
+        attachments = {}
+    }
+end
+
 function ReplaceTagsInMessage(message)
 
     for k , v in pairs(config.MessageTags) do
-        if k == "PlayerName" then
+        if k == "PmAuthor" then
+            message = string.gsub(message,v, "**" .. pmAuthor .. "**")
+        elseif k == "PmAuthorLevel" then
+            message = string.gsub(message,v, "**" .. pmAuthorLevel .. "**")
+        elseif k == "PlayerName" then
             local playerName = FirstToUpper(Player.getName())
             message = string.gsub(message,v, "**" .. playerName .. "**")
         elseif k == "CreatureName" then
@@ -490,8 +515,8 @@ function AddHistoricalDamageToDescription(description)
     return description
 end
 
-function SendMessageToDiscord(message)
-    for k , url in pairs(config.Discord.WebhookUrls) do
+function SendMessageToDiscord(message, type)
+    for k , url in pairs(config.Discord.WebhookUrls[type]) do
         local response = {}
         local _, status, headers = socket.request {
             url = url,
@@ -503,12 +528,11 @@ function SendMessageToDiscord(message)
                 ["Content-Type"] = "application/json",
             }
         }
-        
+
         if status ~= 200 and status ~= 204 then
             print("HTTP request failed. Status code:", status)
         end
     end
-    
 end
 
 -- #endregion DISCORD MESSAGES GENERATION
@@ -581,7 +605,6 @@ function GetLootItemText()
 end
 
 function GetDeathItemText()
-    print(deathMessageType)
     local deathItemText = config.HUD.DeathItemText
 
     if deathMessage and deathMessageType <= #config.HUD.DeathMessageTypes then

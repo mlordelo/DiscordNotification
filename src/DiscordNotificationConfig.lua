@@ -5,13 +5,25 @@ Config.MessageTags = {
     PlayerName = "|playerName|",
     CreatureName = "|creatureName|",
     DamageTaken = "|damageTaken|",
+    PmAuthor = "|pmAuthor|", -- ONLY FOR RECEIVED PM MESSAGES
+    PmAuthorLevel = "|pmAuthorLevel|", -- ONLY FOR RECEIVED PM MESSAGES
     BossName = "|bossName|" -- ONLY FOR BOSS LOOT MESSAGES
 }
 
 Config.Discord = {
     WebhookUrls =  {
-        "YOUR_WEBHOOK_URL_HERE",
-        "YOUR_WEBHOOK_URL_HERE",
+        ["LevelUp"] = {
+            "YOUR_WEBHOOK_URL_HERE",
+        },
+        ["Death"] = {
+            "YOUR_WEBHOOK_URL_HERE",
+        },
+        ["BossLoot"] = {
+            "YOUR_WEBHOOK_URL_HERE",
+        },
+        ["SkillUp"] = {
+            "YOUR_WEBHOOK_URL_HERE",
+        },
     },
     FistEmoji = ":punch: ",
     AxeEmoji = ":axe: ",
@@ -34,6 +46,8 @@ Config.Discord = {
     DescMessageDeath = "|playerName| recebeu |damageTaken| de dano de |creatureName| e morreu!",
     TitleMessageLoot = ":moneybag: |playerName| matou |bossName|!",
     DescMessageLoot = "|playerName| dropou os seguintes itens de |bossName|:",
+    TitlePmMessage = ":incoming_envelope: |pmAuthor| enviou uma mensagem privada: ",
+    DescPmMessage = "|pmAuthor|[|pmAuthorLevel|]: ",
     DiscordEmbedColor = {
         LevelUp = 5832630,
         Death = 14696271,
@@ -85,6 +99,7 @@ Config.Messages = {
     SkillUpEnabled = true,
     DeathEnabled = true,
     LootEnabled = true,
+    PmEnabled = false,
 }
 
 -- List of Very Rare Items
